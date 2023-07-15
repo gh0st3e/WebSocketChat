@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Регистрация/Вход</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        .forms-container {
+            max-width: 300px;
+            text-align: center;
+        }
+
+        h2 {
+            margin-top: 40px;
+        }
+
+        form {
+            margin-top: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        input[type="text"],
+        input[type="password"] {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        input[type="button"] {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        input[type="button"]:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="forms-container">
+        <h2>Регистрация</h2>
+        <form>
+            <label for="login">Логин:</label>
+            <input type="text" id="reg_login" name="login" required>
+
+            <label for="password">Пароль:</label>
+            <input type="password" id="reg_password" name="password" required>
+
+            <label for="name">Имя:</label>
+            <input type="text" id="reg_name" name="name" required>
+
+            <input type="button" value="Зарегистрироваться" onclick="SignUp()">
+        </form>
+
+        <h2>Вход</h2>
+        <form>
+            <label for="login">Логин:</label>
+            <input type="text" id="login" name="login" required>
+
+            <label for="password">Пароль:</label>
+            <input type="password" id="password" name="password" required>
+
+            <input type="button" value="Войти" onclick="SignIn()">
+        </form>
+    </div>
+
+    <script>
+        function SignUp() {
+            let login = document.getElementById("reg_login").value
+            let password = document.getElementById("reg_password").value
+            let name = document.getElementById("reg_name").value
+
+            if (login.length < 4) {
+                alert("Логин должен быть более 3 символов")
+                return
+            }
+            if (password.length < 6) {
+                alert("Пароль должен быть более 5 символов")
+                return
+            }
+            if (name.length < 2) {
+                alert("Имя должно быть более 1 символа")
+                return
+            }
+
+            console.log(login, password, name)
+
+            fetch(`http://localhost:8080/auth/signup`, {
+                method: `POST`,
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify({ login, password, name })
+            })
+                .then(responce => {
+                    return responce.json()
+                })
+                .then(data => {
+                    alert("Вы успешно зарегестрировались")
+                })
+                .catch(err => {
+                    alert(err)
+                })
+        }
+
+        function SignIn() {
+            let login = document.getElementById("login").value
+            let password = document.getElementById("password").value
+
+            if (login.length < 4) {
+                alert("Логин должен быть более 3 символов")
+                return
+            }
+            if (password.length < 6) {
+                alert("Пароль должен быть более 5 символов")
+                return
+            }
+
+            console.log(login, password)
+
+            fetch(`http://localhost:8080/auth/signin`, {
+                method: `POST`,
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify({ login, password })
+            })
+                .then(responce => {
+                    return responce.json()
+                })
+                .then(data => {
+                    console.log(data)
+                    console.log(data.tokens[0])
+                    // ...
+                    localStorage.setItem("accessToken", data.tokens[0]);
+                    window.location.href = "http://localhost:8080/view/messenger";
+                })
+                .catch(err => {
+                    alert(err)
+                })
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Чаты</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+
+        socket.on("receiveMessage", (message) => {
+            console.log(message)
+
+            const chatMessagesContainer = document.querySelector('.chat-messages');
+            const messageBlock = createMessageBlock(message);
+            chatMessagesContainer.appendChild(messageBlock);
+        });
+
+        socket.on("refreshChats", (chat) => {
+            loadChats()
+        })
+
+        function sendMessage() {
+            file = document.getElementById("file")
+
+            if (file.files[0] != undefined) {
+                console.log(file.files[0])
+                console.log(file.files[0].name)
+
+                let msg = {
+                    sender: token,
+                    chat_id: currentChat,
+                    msg: file.files[0].name,
+                    msg_type: "file"
+
+                }
+                socket.emit("uploadFile", file.files[0], msg, (status) => {
+                    console.log(status)
+                })
+
+                return
+
+            } else {
+                text = document.getElementById("msg")
+                if (!text.value) {
+                    alert("Введите сообщение")
+                    return
+                }
+                console.log(text)
+                let msg = {
+                    sender: token,
+                    chat_id: currentChat,
+                    msg: text.value,
+                    msg_type: "msg"
+                }
+                socket.emit("sendMessage", msg);
+            }
+
+
+        }
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .chat-list {
+            flex: 1;
+            max-width: 300px;
+        }
+
+        .chat-item {
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #f1f1f1;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .chat-messages {
+            flex: 2;
+            margin-left: 20px;
+        }
+
+        .message {
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        .message-sender {
+            font-weight: bold;
+        }
+
+        .message-time {
+            font-size: 12px;
+            color: #777;
+        }
+
+        .message-text {
+            margin-top: 5px;
+        }
+
+        .chat-form {
+            margin-top: 20px;
+        }
+
+        .chat-form input[type="text"],
+        .chat-form input[type="file"] {
+            margin-bottom: 10px;
+        }
+
+        .chat-form input[type="submit"] {
+            background-color: #4CAF50;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .search-form {
+            margin-top: 20px;
+        }
+
+        .search-form input[type="text"] {
+            margin-bottom: 10px;
+        }
+
+        .search-form input[type="submit"] {
+            background-color: #4CAF50;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <form class="chat-form">
+        <input id="chat_name" type="text" placeholder="Название чата" required>
+        <input type="button" value="Создать чат" onclick="CreateChat()">
+    </form>
+    <div class="chat-list">
+        <h2>Список чатов</h2>
+    </div>
+    <form class="chat-form">
+        <input id="msg" type="text" placeholder="Введите сообщение" required>
+        <input id="file" type="file">
+        <input type="button" value="Отправить" onclick="sendMessage()">
+    </form>
+    <form class="search-form">
+        <input id="search_msg" type="text" placeholder="Поиск сообщения">
+        <input type="button" value="Поиск" onclick="searchMessage()">
+    </form>
+    <div class="chat-messages">
+        <h2>Сообщения в чате</h2>
+    </div>
+</body>
+
+<script>
+    let currentChat = 0
+
+    const token = localStorage.getItem("accessToken");
+    console.log(token)
+
+    loadChats()
+
+    function searchMessage() {
+        let text = document.getElementById("search_msg").value
+
+        fetch(`http://localhost:8080/msg/${currentChat}/${text}`, {
+            method: `GET`,
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                "Content-Type": "application/json"
+            }
+        })
+            .then(responce => {
+                return responce.json()
+            })
+            .then(data => {
+                console.log(data)
+
+                const chatMessagesContainer = document.querySelector('.chat-messages');
+                chatMessagesContainer.innerHTML = ''; // Очищаем контейнер перед загрузкой новых сообщений
+
+                data.forEach(message => {
+                    const messageBlock = createMessageBlock(message);
+                    chatMessagesContainer.appendChild(messageBlock);
+                });
+            })
+    }
+
+    function CreateChat() {
+        let name = document.getElementById("chat_name").value
+
+        socket.emit("createChat", name, token)
+    }
+
+    function loadChats() {
+        console.log(token)
+        fetch(`http://localhost:8080/chat`, {
+            method: `GET`,
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                "Content-Type": "application/json"
+            }
+        })
+            .then(responce => {
+                return responce.json()
+            })
+            .then(data => {
+                console.log(data)
+
+                const chatListContainer = document.querySelector('.chat-list');
+                chatListContainer.innerHTML = null
+                data.forEach(chat => {
+                    const chatItem = document.createElement('div');
+                    chatItem.classList.add('chat-item');
+                    chatItem.textContent = chat.name;
+
+                    chatItem.addEventListener('click', () => {
+                        loadChatMessage(chat.id)
+                        currentChat = chat.id
+                        console.log(`Выбран чат: ${chat.name}`);
+                    });
+
+                    chatListContainer.appendChild(chatItem);
+                });
+            })
+    }
+
+    function loadSingleChat(chat) {
+        const chatListContainer = document.querySelector('.chat-list');
+
+        console.log(chat)
+
+        const chatItem = document.createElement('div');
+        chatItem.classList.add('chat-item');
+        chatItem.textContent = chat.name;
+
+        chatItem.addEventListener('click', () => {
+            loadChatMessage(chat.id)
+            currentChat = chat.id
+            console.log(`Выбран чат: ${chat.name}`);
+
+            chatListContainer.appendChild(chatItem);
+        });
+    }
+
+    function loadChatMessage(id) {
+        fetch(`http://localhost:8080/msg/${id}`, {
+            method: `GET`,
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                "Content-Type": "application/json"
+            }
+        })
+            .then(responce => {
+                return responce.json()
+            })
+            .then(data => {
+                console.log(data)
+
+                const chatMessagesContainer = document.querySelector('.chat-messages');
+                chatMessagesContainer.innerHTML = ''; // Очищаем контейнер перед загрузкой новых сообщений
+
+                data.forEach(message => {
+                    const messageBlock = createMessageBlock(message);
+                    chatMessagesContainer.appendChild(messageBlock);
+                });
+            })
+    }
+
+    function createMessageBlock(message) {
+        const messageBlock = document.createElement('div');
+        messageBlock.classList.add('message');
+
+        const senderName = `User ${message.sender}`;
+        const senderElement = document.createElement('div');
+        senderElement.classList.add('message-sender');
+        senderElement.textContent = senderName;
+        messageBlock.appendChild(senderElement);
+
+        const timeElement = document.createElement('div');
+        timeElement.classList.add('message-time');
+        const createdDate = new Date(message.created_at);
+        const formattedTime = createdDate.toLocaleString();
+        timeElement.textContent = formattedTime;
+        messageBlock.appendChild(timeElement);
+
+        if (message.msg_type === 'file') {
+            const fileExtension = message.msg.split('.').pop().toLowerCase(); // Получаем расширение файла
+            console.log("generating image")
+            console.log(message)
+            if (['png', 'jpeg', 'jpg', 'gif'].includes(fileExtension)) {
+                const imageElement = document.createElement('img');
+                imageElement.src = `${message.msg}`;
+                imageElement.alt = 'Изображение';
+                imageElement.classList.add('message-image');
+
+                messageBlock.appendChild(imageElement);
+            } else {
+                const fileElement = document.createElement('a');
+                fileElement.href = `${message.msg}`;
+                fileElement.textContent = `${message.msg}`;
+                fileElement.download = message.msg;
+
+                messageBlock.appendChild(fileElement);
+            }
+        } else {
+            const textElement = document.createElement('div');
+            textElement.classList.add('message-text');
+            textElement.textContent = message.msg;
+            messageBlock.appendChild(textElement);
+        }
+
+        return messageBlock;
+    }
+</script>
+
+</html>
